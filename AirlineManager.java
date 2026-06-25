@@ -94,35 +94,32 @@ public class AirlineManager{
         return userId;
     }
 
-    public void assignCrewToFlight(String flightNumber, Crew crew){
+    public boolean assignCrewToFlight(String flightNumber, Crew crew){
         if (crew == null){
             System.out.println("Failed to assign crew: crew member is null.");
-            return;
+            return false;
         }
 
         Flight flight = findFlight(flightNumber);
         if (flight == null){
             System.out.println("Failed to assign crew: flight not found.");
-            return;
+            return false;
         }
 
-        if (flight.assignCrew(crew)){
-            syncCrewCounterFromId(crew.getUserId());
+        if (!flight.assignCrew(crew)){
+            return false;
         }
+
+        syncCrewCounterFromId(crew.getUserId());
+        return true;
     }
 
     public void assignCrewToFlight(String flightNumber, String name, String email, String rank){
-        Flight flight = findFlight(flightNumber);
-        if (flight == null){
-            System.out.println("Failed to assign crew: flight not found.");
-            return;
-        }
-
         crewCounter++;
         String crewUserId = String.format("C%03d", crewCounter);
         String employeeId = String.format("EMP%03d", crewCounter);
         Crew crew = new Crew(crewUserId, name, email, employeeId, rank);
-        if (flight.assignCrew(crew)){
+        if (assignCrewToFlight(flightNumber, crew)){
             System.out.println("Crew assigned. User ID: " + crewUserId + ", Employee ID: " + employeeId);
         } else {
             crewCounter--;
@@ -356,8 +353,6 @@ public class AirlineManager{
     public void saveSystemToFile(String filename){
         try (PrintWriter writer = new PrintWriter(new FileWriter(filename))){
             writer.println("VERSION|1");
-            writer.println("COUNTERS|" + bookingCounter + "|" + passengerCounter + "|"
-                + flightCounter + "|" + crewCounter);
 
             for (Flight flight : flights){
                 writer.println("FLIGHT|" + flight.getFlightNumber() + "|"
@@ -432,7 +427,7 @@ public class AirlineManager{
             }
 
             if (!lines.get(0).startsWith("VERSION|")){
-                loadLegacyBookingFile(lines);
+                System.out.println("Load failed: unsupported file format.");
                 return;
             }
 
@@ -451,9 +446,8 @@ public class AirlineManager{
                 }
 
                 switch (parts[0]){
-                    case "VERSION" -> {
+                    case "VERSION", "COUNTERS" -> {
                     }
-                    case "COUNTERS" -> loadCounters(parts);
                     case "FLIGHT" -> {
                         if (parts.length < 5){
                             System.out.println("Load skipped: invalid flight record.");
@@ -506,16 +500,6 @@ public class AirlineManager{
         passengerCounter = 0;
         flightCounter = 0;
         crewCounter = 0;
-    }
-
-    private void loadCounters(String[] parts){
-        if (parts.length < 5){
-            return;
-        }
-        bookingCounter = Integer.parseInt(parts[1]);
-        passengerCounter = Integer.parseInt(parts[2]);
-        flightCounter = Integer.parseInt(parts[3]);
-        crewCounter = Integer.parseInt(parts[4]);
     }
 
     private void loadSeatRecord(String[] parts){
@@ -571,9 +555,6 @@ public class AirlineManager{
 
         registerPassenger(passenger);
         passenger.restoreLoyaltyPoints(loyaltyPoints);
-        if (passenger instanceof GoldMember){
-            passenger.setMaxFlexChanges(maxFlexChanges);
-        }
     }
 
     private void loadCrewRecord(String[] parts){
@@ -652,55 +633,6 @@ public class AirlineManager{
             return "GOLD";
         }
         return "BASIC";
-    }
-
-    private void loadLegacyBookingFile(List<String> lines){
-        int restored = 0;
-        for (String record : lines){
-            String[] parts = record.split("\\|");
-            if (parts.length < 2){
-                System.out.println("Load skipped: invalid line format.");
-                continue;
-            }
-
-            if ("PASSENGER".equals(parts[0]) && parts.length >= 3){
-                Passenger passenger = findPassenger(parts[1]);
-                if (passenger == null){
-                    System.out.println("Load skipped: passenger not found for flex restore (" + parts[1] + ").");
-                    continue;
-                }
-                try {
-                    passenger.setMaxFlexChanges(Integer.parseInt(parts[2]));
-                    restored++;
-                } catch (NumberFormatException e){
-                    System.out.println("Load skipped: invalid flex changes value for " + parts[1] + ".");
-                }
-                continue;
-            }
-
-            if (parts.length < 4){
-                System.out.println("Load skipped: invalid booking line format.");
-                continue;
-            }
-
-            String bookingId = parts[0];
-            if (!bookingId.startsWith("BK")){
-                System.out.println("Load skipped: unrecognized legacy record.");
-                continue;
-            }
-
-            String[] bookingParts = new String[6];
-            bookingParts[0] = "BOOKING";
-            bookingParts[1] = parts[0];
-            bookingParts[2] = parts[1];
-            bookingParts[3] = parts[2];
-            bookingParts[4] = parts[3];
-            bookingParts[5] = parts.length >= 5 ? parts[4] : "0";
-            loadBookingRecord(bookingParts);
-            restored++;
-        }
-
-        System.out.println("Legacy booking data processed (" + restored + " record(s)).");
     }
 
     private void syncBookingCounterFromId(String bookingId){

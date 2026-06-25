@@ -13,7 +13,6 @@ public class Booking{
     private Flight flight;
     private Seat seat;
     private double finalTicketPrice;
-    private String restoreFailureReason;
 
     public Booking(String bookingId, Passenger passenger, Flight flight, Seat seat){
         this.bookingId = bookingId;
@@ -41,10 +40,6 @@ public class Booking{
 
     public double getFinalTicketPrice(){
         return finalTicketPrice;
-    }
-
-    public String getRestoreFailureReason(){
-        return restoreFailureReason;
     }
 
     public double calculateFinalPrice(){
@@ -80,40 +75,6 @@ public class Booking{
         passenger.addBooking(this);
 
         System.out.println("Booking confirmed. Earned " + points + " loyalty points.");
-        notifyLoungeStatusChange(loungeBefore);
-        return true;
-    }
-
-    public boolean restoreTransaction(double savedPrice){
-        restoreFailureReason = null;
-
-        if (seat.isBooked()){
-            restoreFailureReason = "seat already booked";
-            return false;
-        }
-
-        if (savedPrice < 0){
-            restoreFailureReason = "negative price";
-            return false;
-        }
-
-        if (Math.abs(savedPrice - computePriceForSeat()) > 0.01){
-            restoreFailureReason = "saved price does not match expected price";
-            return false;
-        }
-
-        boolean loungeBefore = passenger.qualifiesForLounge();
-        finalTicketPrice = savedPrice;
-
-        if (!seat.reserve()){
-            finalTicketPrice = 0;
-            restoreFailureReason = "seat could not be reserved";
-            return false;
-        }
-
-        int points = passenger.calculateLoyaltyPoints(savedPrice);
-        passenger.accumulatePoints(points);
-        passenger.addBooking(this);
         notifyLoungeStatusChange(loungeBefore);
         return true;
     }

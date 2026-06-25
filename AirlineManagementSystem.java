@@ -129,7 +129,7 @@ public class AirlineManagementSystem {
     }
 
     private static void addFlight() {
-        String dest = readLine("Destination: ");
+        String dest = readNonEmpty("Destination: ");
         double fare = readPositiveDouble("Base fare (RM): ");
         runOperation("Add Flight", () -> manager.createFlight(dest, fare));
     }
@@ -158,18 +158,18 @@ public class AirlineManagementSystem {
     private static void assignCrew() {
         printContext(manager::listAllFlights);
         String flightNo = readLine("Flight number: ");
-        String name = readLine("Crew name: ");
-        String email = readLine("Crew email: ");
-        String rank = readLine("Rank: ");
+        String name = readNonEmpty("Crew name: ");
+        String email = readEmail("Crew email: ");
+        String rank = readNonEmpty("Rank: ");
         runOperation("Assign Crew", () -> manager.assignCrewToFlight(flightNo, name, email, rank));
     }
 
     private static void registerPassenger() {
         System.out.println("Membership: 1=Basic  2=Gold  3=Platinum (any other number registers as Basic)");
         int tier = readInt("Membership choice: ");
-        String name = readLine("Name: ");
-        String email = readLine("Email: ");
-        String passport = readLine("Passport: ");
+        String name = readNonEmpty("Name: ");
+        String email = readEmail("Email: ");
+        String passport = readPassport("Passport: ");
 
         if (tier == 2) {
             int flex = readNonNegativeInt("Max flex changes: ");
@@ -324,6 +324,36 @@ public class AirlineManagementSystem {
             } catch (NumberFormatException ex) {
                 System.out.println("Please enter a valid number.");
             }
+        }
+    }
+
+    private static String readNonEmpty(String prompt) {
+        while (true) {
+            String value = readLine(prompt);
+            if (!value.isEmpty()) {
+                return value;
+            }
+            System.out.println("Value cannot be empty.");
+        }
+    }
+
+    private static String readEmail(String prompt) {
+        while (true) {
+            String value = readLine(prompt);
+            if (value.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+                return value;
+            }
+            System.out.println("Please enter a valid email address.");
+        }
+    }
+
+    private static String readPassport(String prompt) {
+        while (true) {
+            String value = readLine(prompt).toUpperCase();
+            if (value.matches("^[A-Z][A-Z0-9]{6,8}$")) {
+                return value;
+            }
+            System.out.println("Passport must be one letter followed by 6-8 letters or digits.");
         }
     }
 }

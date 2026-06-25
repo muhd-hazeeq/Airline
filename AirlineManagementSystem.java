@@ -135,6 +135,7 @@ public class AirlineManagementSystem {
     }
 
     private static void setFlightStatus() {
+        printContext(manager::listAllFlights);
         String flightNo = readLine("Flight number: ");
         System.out.println("Statuses: SCHEDULED, BOARDING, DEPARTED, ARRIVED, DELAYED, CANCELLED");
         String statusText = readLine("New status: ");
@@ -155,6 +156,7 @@ public class AirlineManagementSystem {
     }
 
     private static void assignCrew() {
+        printContext(manager::listAllFlights);
         String flightNo = readLine("Flight number: ");
         String name = readLine("Crew name: ");
         String email = readLine("Crew email: ");
@@ -163,7 +165,7 @@ public class AirlineManagementSystem {
     }
 
     private static void registerPassenger() {
-        System.out.println("Membership: 1=Basic  2=Gold  3=Platinum");
+        System.out.println("Membership: 1=Basic  2=Gold  3=Platinum (any other number registers as Basic)");
         int tier = readInt("Membership choice: ");
         String name = readLine("Name: ");
         String email = readLine("Email: ");
@@ -183,6 +185,7 @@ public class AirlineManagementSystem {
     }
 
     private static void viewProfile() {
+        printContext(manager::listAllPassengers);
         String passengerId = readLine("Passenger ID: ");
         Passenger passenger = manager.findPassenger(passengerId);
         if (passenger == null) {
@@ -193,26 +196,35 @@ public class AirlineManagementSystem {
     }
 
     private static void createBooking() {
+        printContext(manager::listAllPassengers);
         String passengerId = readLine("Passenger ID: ");
+        printContext(manager::listAllFlights);
         String flightNo = readLine("Flight number: ");
+        printContext(() -> manager.listAvailableSeats(flightNo));
         String seat = readLine("Seat (e.g. 12A): ");
         runOperation("Create Booking", () -> manager.createBooking(passengerId, flightNo, seat));
     }
 
     private static void checkIn() {
+        printContext(manager::listAllPassengers);
         String passengerId = readLine("Passenger ID: ");
         runOperation("Check-in", () -> manager.processCheckIn(passengerId));
     }
 
     private static void loungeAccess() {
+        printContext(manager::listAllPassengers);
         String passengerId = readLine("Passenger ID: ");
         runOperation("Lounge Access", () -> manager.checkLoungeAccess(passengerId));
     }
 
     private static void flexChange() {
+        printContext(manager::listAllPassengers);
         String passengerId = readLine("Passenger ID: ");
+        printContext(() -> manager.listPassengerBookings(passengerId));
         String bookingId = readLine("Booking ID: ");
+        printContext(manager::listAllFlights);
         String newFlight = readLine("New flight number: ");
+        printContext(() -> manager.listAvailableSeats(newFlight));
         String newSeat = readLine("New seat: ");
         runOperation("Flex Change", () ->
             manager.requestFlexFlightChange(passengerId, bookingId, newFlight, newSeat));
@@ -259,6 +271,12 @@ public class AirlineManagementSystem {
             }
             showToOutput("");
         }
+    }
+
+    private static void printContext(Runnable listing) {
+        System.out.println();
+        listing.run();
+        System.out.println();
     }
 
     private static void showToOutput(String text) {

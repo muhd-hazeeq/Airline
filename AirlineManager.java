@@ -217,6 +217,69 @@ public class AirlineManager{
         }
     }
 
+    public void listAvailableSeats(String flightNumber){
+        Flight flight = findFlight(flightNumber);
+        if (flight == null){
+            System.out.println("Flight not found: " + flightNumber);
+            return;
+        }
+
+        Seat[][] seats = flight.getSeats();
+        if (seats == null){
+            System.out.println("Seats not initialized.");
+            return;
+        }
+
+        System.out.println("--- Seat map for " + flightNumber
+            + " (rows 1-2 First Class, 3-5 Business, 6-15 Economy) ---");
+        System.out.println("  '--' = taken");
+        System.out.printf("%6s", "");
+        for (String column : new String[]{"A", "B", "C", "D", "E", "F"}){
+            System.out.printf("%5s", column);
+        }
+        System.out.println();
+
+        boolean anyAvailable = false;
+        for (int row = 0; row < seats.length; row++){
+            System.out.printf("%6d", row + 1);
+            for (Seat seat : seats[row]){
+                if (seat != null && !seat.isBooked()){
+                    anyAvailable = true;
+                    System.out.printf("%5s", seat.getSeatNumber());
+                } else {
+                    System.out.printf("%5s", "--");
+                }
+            }
+            System.out.println();
+        }
+
+        if (!anyAvailable){
+            System.out.println("No available seats.");
+        }
+    }
+
+    public void listPassengerBookings(String passengerId){
+        Passenger passenger = findPassenger(passengerId);
+        if (passenger == null){
+            System.out.println("Passenger not found: " + passengerId);
+            return;
+        }
+
+        System.out.println("--- Bookings for " + passengerId + " ---");
+        if (passenger.getBookingHistory().isEmpty()){
+            System.out.println("No bookings found.");
+            return;
+        }
+
+        for (Booking booking : passenger.getBookingHistory()){
+            System.out.println("  " + booking.getBookingId()
+                + " | " + booking.getFlight().getFlightNumber()
+                + " | seat " + booking.getSeat().getSeatNumber()
+                + " (" + booking.getSeat().getType() + ")"
+                + " | RM " + booking.getFinalTicketPrice());
+        }
+    }
+
     private String formatFlexInfo(Passenger passenger){
         if (passenger instanceof PlatinumMember){
             return "unlimited";

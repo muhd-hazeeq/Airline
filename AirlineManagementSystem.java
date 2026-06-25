@@ -38,22 +38,22 @@ public class AirlineManagementSystem {
             System.out.println();
 
             switch (choice) {
-                case 1 -> loadSampleData();
-                case 2 -> addFlight();
-                case 3 -> setFlightStatus();
-                case 4 -> assignCrew();
-                case 5 -> registerPassenger();
-                case 6 -> viewProfile();
-                case 7 -> createBooking();
-                case 8 -> checkIn();
-                case 9 -> loungeAccess();
-                case 10 -> flexChange();
-                case 11 -> saveSystemData();
-                case 12 -> loadSystemData();
-                case 13 -> viewFlights();
-                case 14 -> viewPassengers();
-                case 15 -> viewCrews();
-                case 16 -> viewBookings();
+                // case 1 -> loadSampleData();
+                case 1 -> addFlight();
+                case 2 -> setFlightStatus();
+                case 3 -> assignCrew();
+                case 4 -> registerPassenger();
+                case 5 -> viewProfile();
+                case 6 -> createBooking();
+                case 7 -> checkIn();
+                case 8 -> loungeAccess();
+                case 9 -> flexChange();
+                case 10 -> saveSystemData();
+                case 11 -> loadSystemData();
+                case 12 -> viewFlights();
+                case 13 -> viewPassengers();
+                case 14 -> viewCrews();
+                case 15 -> viewBookings();
                 case 0 -> running = false;
                 default -> System.out.println("Invalid choice. Please try again.\n");
             }
@@ -83,22 +83,22 @@ public class AirlineManagementSystem {
 
     private static void printMenu() {
         System.out.println("========== MENU ==========");
-        System.out.println(" 1. Load sample data");
-        System.out.println(" 2. Add flight");
-        System.out.println(" 3. Set flight status");
-        System.out.println(" 4. Assign crew");
-        System.out.println(" 5. Register passenger");
-        System.out.println(" 6. View passenger profile");
-        System.out.println(" 7. Create booking");
-        System.out.println(" 8. Process check-in");
-        System.out.println(" 9. Check lounge access");
-        System.out.println("10. Flex flight change");
-        System.out.println("11. Save system data to file");
-        System.out.println("12. Load system data from file");
-        System.out.println("13. View all flights");
-        System.out.println("14. View all passengers");
-        System.out.println("15. View all crew");
-        System.out.println("16. View all bookings");
+        // System.out.println(" 1. Load sample data");
+        System.out.println(" 1. Add flight");
+        System.out.println(" 2. Set flight status");
+        System.out.println(" 3. Assign crew");
+        System.out.println(" 4. Register passenger");
+        System.out.println(" 5. View passenger profile");
+        System.out.println(" 6. Create booking");
+        System.out.println(" 7. Process check-in");
+        System.out.println(" 8. Check lounge access");
+        System.out.println(" 9. Flex flight change");
+        System.out.println("10. Save system data to file");
+        System.out.println("11. Load system data from file");
+        System.out.println("12. View all flights");
+        System.out.println("13. View all passengers");
+        System.out.println("14. View all crew");
+        System.out.println("15. View all bookings");
         System.out.println(" 0. Exit");
         System.out.println("==========================");
     }

@@ -145,45 +145,4 @@ public class Flight{
 
         return null;
     }
-
-    public String listCrew(){
-        if (crewCount == 0){
-            return "  (no crew assigned)";
-        }
-
-        StringBuilder listing = new StringBuilder();
-        for (int i = 0; i < crewCount; i++){
-            Crew member = flightCrew[i];
-            if (member != null){
-                listing.append("  ").append(member.getUserId())
-                    .append(" | ").append(member.getName())
-                    .append(" | ").append(member.getEmployeeId())
-                    .append(" | ").append(member.getRank())
-                    .append("\n");
-            }
-        }
-        return listing.toString().trim();
-    }
-
-    // public String listAvailableSeats(){
-    //     if (seats == null){
-    //         return "  (seats not initialized)";
-    //     }
-
-    //     StringBuilder listing = new StringBuilder();
-    //     for (int row = 0; row < seats.length; row++){
-    //         for (int col = 0; col < seats[row].length; col++){
-    //             Seat seat = seats[row][col];
-    //             if (seat != null && !seat.isBooked()){
-    //                 listing.append("  ").append(seat.getSeatNumber())
-    //                     .append(" (").append(seat.getType()).append(")\n");
-    //             }
-    //         }
-    //     }
-
-    //     if (listing.length() == 0){
-    //         return "  (no available seats)";
-    //     }
-    //     return listing.toString().trim();
-    // }
 }

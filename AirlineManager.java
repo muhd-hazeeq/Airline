@@ -180,11 +180,17 @@ public class AirlineManager{
         System.out.println("--- Crew ---");
         boolean found = false;
         for (Flight flight : flights){
-            String crewListing = flight.listCrew();
-            if (!crewListing.startsWith("  (no crew")){
-                found = true;
-                System.out.println("Flight " + flight.getFlightNumber() + ":");
-                System.out.println(crewListing);
+            Crew[] crewMembers = flight.getCrewMembers();
+            if (crewMembers.length == 0){
+                continue;
+            }
+            found = true;
+            System.out.println("Flight " + flight.getFlightNumber() + ":");
+            for (Crew member : crewMembers){
+                System.out.println("  " + member.getUserId()
+                    + " | " + member.getName()
+                    + " | " + member.getEmployeeId()
+                    + " | " + member.getRank());
             }
         }
         if (!found){
@@ -358,20 +364,25 @@ public class AirlineManager{
                 writer.println("FLIGHT|" + flight.getFlightNumber() + "|"
                     + flight.getDestination() + "|" + flight.getBaseFare() + "|"
                     + flight.getStatus());
-            }
 
-            for (Flight flight : flights){
                 Seat[][] seats = flight.getSeats();
-                if (seats == null){
-                    continue;
-                }
-                for (Seat[] row : seats){
-                    for (Seat seat : row){
-                        if (seat != null){
-                            writer.println("SEAT|" + flight.getFlightNumber() + "|"
-                                + seat.getSeatNumber() + "|" + seat.getType() + "|"
-                                + (seat.isBooked() ? "1" : "0"));
+                if (seats != null){
+                    for (Seat[] row : seats){
+                        for (Seat seat : row){
+                            if (seat != null && seat.isBooked()){
+                                writer.println("SEAT|" + flight.getFlightNumber() + "|"
+                                    + seat.getSeatNumber());
+                            }
                         }
+                    }
+                }
+
+                for (Crew crew : flight.getCrewMembers()){
+                    if (crew != null){
+                        writer.println("CREW|" + flight.getFlightNumber() + "|"
+                            + crew.getUserId() + "|" + crew.getName() + "|"
+                            + crew.getEmail() + "|" + crew.getEmployeeId() + "|"
+                            + crew.getRank());
                     }
                 }
             }
@@ -381,17 +392,6 @@ public class AirlineManager{
                     + membershipCode(passenger) + "|" + passenger.getName() + "|"
                     + passenger.getEmail() + "|" + passenger.getPassportNumber() + "|"
                     + passenger.getTotalLoyaltyPoints() + "|" + passenger.getMaxFlexChanges());
-            }
-
-            for (Flight flight : flights){
-                for (Crew crew : flight.getCrewMembers()){
-                    if (crew != null){
-                        writer.println("CREW|" + flight.getFlightNumber() + "|"
-                            + crew.getUserId() + "|" + crew.getName() + "|"
-                            + crew.getEmail() + "|" + crew.getEmployeeId() + "|"
-                            + crew.getRank());
-                    }
-                }
             }
 
             for (Passenger passenger : passengers){
@@ -431,7 +431,7 @@ public class AirlineManager{
                 return;
             }
 
-            Map<String, String[]> flightStatusRecords = new LinkedHashMap<>();
+            Map<String, String> pendingFlightStatus = new LinkedHashMap<>();
             List<String[]> seatRecords = new ArrayList<>();
             List<String[]> passengerRecords = new ArrayList<>();
             List<String[]> crewRecords = new ArrayList<>();
@@ -453,9 +453,8 @@ public class AirlineManager{
                             System.out.println("Load skipped: invalid flight record.");
                             break;
                         }
-                        Flight flight = new Flight(parts[1], parts[2], Double.parseDouble(parts[3]));
-                        addFlight(flight);
-                        flightStatusRecords.put(parts[1], parts);
+                        addFlight(new Flight(parts[1], parts[2], Double.parseDouble(parts[3])));
+                        pendingFlightStatus.put(parts[1], parts[4]);
                     }
                     case "SEAT" -> seatRecords.add(parts);
                     case "PASSENGER" -> passengerRecords.add(parts);
@@ -481,8 +480,16 @@ public class AirlineManager{
                 loadBookingRecord(parts);
             }
 
-            for (String[] parts : flightStatusRecords.values()){
-                restoreFlightStatus(parts);
+            for (Map.Entry<String, String> entry : pendingFlightStatus.entrySet()){
+                Flight flight = findFlight(entry.getKey());
+                if (flight == null){
+                    continue;
+                }
+                try {
+                    flight.restoreStatus(FlightStatus.valueOf(entry.getValue()));
+                } catch (IllegalArgumentException e){
+                    System.out.println("Load skipped: invalid status for flight " + entry.getKey() + ".");
+                }
             }
 
             System.out.println("System data loaded from " + filename + ".");
@@ -503,7 +510,7 @@ public class AirlineManager{
     }
 
     private void loadSeatRecord(String[] parts){
-        if (parts.length < 5){
+        if (parts.length < 3){
             System.out.println("Load skipped: invalid seat record.");
             return;
         }
@@ -520,13 +527,26 @@ public class AirlineManager{
             return;
         }
 
-        SeatType savedType = SeatType.valueOf(parts[3]);
-        if (!savedType.equals(seat.getType())){
-            System.out.println("Load skipped: seat type mismatch for " + parts[2] + " on " + parts[1] + ".");
-            return;
+        boolean booked;
+        if (parts.length >= 5){
+            try {
+                SeatType savedType = SeatType.valueOf(parts[3]);
+                if (!savedType.equals(seat.getType())){
+                    System.out.println("Load skipped: seat type mismatch for " + parts[2] + " on " + parts[1] + ".");
+                    return;
+                }
+            } catch (IllegalArgumentException e){
+                System.out.println("Load skipped: invalid seat type for " + parts[2] + " on " + parts[1] + ".");
+                return;
+            }
+            booked = "1".equals(parts[4]);
+        } else if (parts.length == 4){
+            booked = "1".equals(parts[3]);
+        } else {
+            booked = true;
         }
 
-        seat.restoreBooked("1".equals(parts[4]));
+        seat.restoreBooked(booked);
     }
 
     private void loadPassengerRecord(String[] parts){
@@ -610,19 +630,6 @@ public class AirlineManager{
 
         Booking booking = new Booking(bookingId, passenger, flight, seat);
         booking.attachPersisted(price);
-    }
-
-    private void restoreFlightStatus(String[] parts){
-        Flight flight = findFlight(parts[1]);
-        if (flight == null){
-            return;
-        }
-
-        try {
-            flight.restoreStatus(FlightStatus.valueOf(parts[4]));
-        } catch (IllegalArgumentException e){
-            System.out.println("Load skipped: invalid status for flight " + parts[1] + ".");
-        }
     }
 
     private String membershipCode(Passenger passenger){

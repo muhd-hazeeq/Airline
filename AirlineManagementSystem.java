@@ -11,6 +11,9 @@ import java.awt.BorderLayout;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Scanner;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
@@ -106,10 +109,10 @@ public class AirlineManagementSystem {
     private static void loadSampleData() {
         runOperation("Load Sample Data", () -> {
             if (manager.findFlight("KL101") == null) {
-                manager.addFlight(new Flight("KL101", "Tokyo", 500.0));
+                manager.addFlight(new Flight("KL101", "Tokyo", 500.0, LocalDateTime.of(2026, 7, 5, 14, 30)));
             }
             if (manager.findFlight("KL202") == null) {
-                manager.addFlight(new Flight("KL202", "London", 450.0));
+                manager.addFlight(new Flight("KL202", "London", 450.0, LocalDateTime.of(2026, 7, 6, 9, 0)));
             }
             if (manager.findFlight("KL101") != null) {
                 manager.assignCrewToFlight("KL101",
@@ -131,37 +134,64 @@ public class AirlineManagementSystem {
     private static void addFlight() {
         String dest = readNonEmpty("Destination: ");
         double fare = readPositiveDouble("Base fare (RM): ");
-        runOperation("Add Flight", () -> manager.createFlight(dest, fare));
+        LocalDateTime dep = readDateTime("Departure (yyyy-MM-dd HH:mm): ");
+        runOperation("Add Flight", () -> manager.createFlight(dest, fare, dep));
     }
 
     private static void setFlightStatus() {
-        printContext(manager::listAllFlights);
-        String flightNo = readLine("Flight number: ");
-        System.out.println("Statuses: SCHEDULED, BOARDING, DEPARTED, ARRIVED, DELAYED, CANCELLED");
-        String statusText = readLine("New status: ");
-        runOperation("Set Flight Status", () -> {
-            Flight flight = manager.findFlight(flightNo);
-            if (flight == null) {
-                System.out.println("Flight not found: " + flightNo);
-                return;
+        try {
+            printContext(manager::listAllFlights);
+            String flightNo = readLine("Flight number: ");
+            if (manager.findFlight(flightNo) == null) {
+                throw new IllegalArgumentException("Flight not found: " + flightNo);
             }
+            System.out.println("Statuses: SCHEDULED, BOARDING, DEPARTED, ARRIVED, DELAYED, CANCELLED");
+            String statusText = readLine("New status: ");
+            FlightStatus status;
             try {
-                FlightStatus status = FlightStatus.valueOf(statusText.trim().toUpperCase());
+                status = FlightStatus.valueOf(statusText.trim().toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid flight status.");
+            }
+            LocalDateTime delayedNewDep = null;
+            if (status == FlightStatus.DELAYED) {
+                String input = readLine("New departure (yyyy-MM-dd HH:mm or blank to keep): ");
+                if (!input.isEmpty()) {
+                    try {
+                        delayedNewDep = LocalDateTime.parse(input.trim(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                    } catch (DateTimeParseException ex) {
+                        System.out.println("Bad format, keeping original time.");
+                    }
+                }
+            }
+            final LocalDateTime depToUpdate = delayedNewDep;
+            runOperation("Set Flight Status", () -> {
+                Flight flight = manager.findFlight(flightNo);
                 flight.setStatus(status);
                 System.out.println("Flight " + flightNo + " status set to " + status + ".");
-            } catch (IllegalArgumentException ex) {
-                System.out.println("Invalid flight status.");
-            }
-        });
+                if (depToUpdate != null) {
+                    manager.updateFlightDeparture(flightNo, depToUpdate);
+                }
+            });
+        } catch (IllegalArgumentException ex) {
+            showToOutput(ex.getMessage());
+        }
     }
 
     private static void assignCrew() {
-        printContext(manager::listAllFlights);
-        String flightNo = readLine("Flight number: ");
-        String name = readNonEmpty("Crew name: ");
-        String email = readEmail("Crew email: ");
-        String rank = readNonEmpty("Rank: ");
-        runOperation("Assign Crew", () -> manager.assignCrewToFlight(flightNo, name, email, rank));
+        try {
+            printContext(manager::listAllFlights);
+            String flightNo = readLine("Flight number: ");
+            if (manager.findFlight(flightNo) == null) {
+                throw new IllegalArgumentException("Flight not found: " + flightNo);
+            }
+            String name = readNonEmpty("Crew name: ");
+            String email = readEmail("Crew email: ");
+            String rank = readNonEmpty("Rank: ");
+            runOperation("Assign Crew", () -> manager.assignCrewToFlight(flightNo, name, email, rank));
+        } catch (IllegalArgumentException ex) {
+            showToOutput(ex.getMessage());
+        }
     }
 
     private static void registerPassenger() {
@@ -185,49 +215,89 @@ public class AirlineManagementSystem {
     }
 
     private static void viewProfile() {
-        printContext(manager::listAllPassengers);
-        String passengerId = readLine("Passenger ID: ");
-        Passenger passenger = manager.findPassenger(passengerId);
-        if (passenger == null) {
-            showToOutput("Passenger not found: " + passengerId);
-            return;
+        try {
+            printContext(manager::listAllPassengers);
+            String passengerId = readLine("Passenger ID: ");
+            Passenger passenger = manager.findPassenger(passengerId);
+            if (passenger == null) {
+                throw new IllegalArgumentException("Passenger not found: " + passengerId);
+            }
+            runOperation("Passenger Profile", passenger::displayProfile);
+        } catch (IllegalArgumentException ex) {
+            showToOutput(ex.getMessage());
         }
-        runOperation("Passenger Profile", passenger::displayProfile);
     }
 
     private static void createBooking() {
-        printContext(manager::listAllPassengers);
-        String passengerId = readLine("Passenger ID: ");
-        printContext(manager::listAllFlights);
-        String flightNo = readLine("Flight number: ");
-        printContext(() -> manager.listAvailableSeats(flightNo));
-        String seat = readLine("Seat (e.g. 12A): ");
-        runOperation("Create Booking", () -> manager.createBooking(passengerId, flightNo, seat));
+        try {
+            printContext(manager::listAllPassengers);
+            String passengerId = readLine("Passenger ID: ");
+            if (manager.findPassenger(passengerId) == null) {
+                throw new IllegalArgumentException("Passenger not found: " + passengerId);
+            }
+            printContext(manager::listAllFlights);
+            String flightNo = readLine("Flight number: ");
+            if (manager.findFlight(flightNo) == null) {
+                throw new IllegalArgumentException("Flight not found: " + flightNo);
+            }
+            printContext(() -> manager.listAvailableSeats(flightNo));
+            String seat = readLine("Seat (e.g. 12A): ");
+            runOperation("Create Booking", () -> manager.createBooking(passengerId, flightNo, seat));
+        } catch (IllegalArgumentException ex) {
+            showToOutput(ex.getMessage());
+        }
     }
 
     private static void checkIn() {
-        printContext(manager::listAllPassengers);
-        String passengerId = readLine("Passenger ID: ");
-        runOperation("Check-in", () -> manager.processCheckIn(passengerId));
+        try {
+            printContext(manager::listAllPassengers);
+            String passengerId = readLine("Passenger ID: ");
+            if (manager.findPassenger(passengerId) == null) {
+                throw new IllegalArgumentException("Passenger not found: " + passengerId);
+            }
+            runOperation("Check-in", () -> manager.processCheckIn(passengerId));
+        } catch (IllegalArgumentException ex) {
+            showToOutput(ex.getMessage());
+        }
     }
 
     private static void loungeAccess() {
-        printContext(manager::listAllPassengers);
-        String passengerId = readLine("Passenger ID: ");
-        runOperation("Lounge Access", () -> manager.checkLoungeAccess(passengerId));
+        try {
+            printContext(manager::listAllPassengers);
+            String passengerId = readLine("Passenger ID: ");
+            if (manager.findPassenger(passengerId) == null) {
+                throw new IllegalArgumentException("Passenger not found: " + passengerId);
+            }
+            runOperation("Lounge Access", () -> manager.checkLoungeAccess(passengerId));
+        } catch (IllegalArgumentException ex) {
+            showToOutput(ex.getMessage());
+        }
     }
 
     private static void flexChange() {
-        printContext(manager::listAllPassengers);
-        String passengerId = readLine("Passenger ID: ");
-        printContext(() -> manager.listPassengerBookings(passengerId));
-        String bookingId = readLine("Booking ID: ");
-        printContext(manager::listAllFlights);
-        String newFlight = readLine("New flight number: ");
-        printContext(() -> manager.listAvailableSeats(newFlight));
-        String newSeat = readLine("New seat: ");
-        runOperation("Flex Change", () ->
-            manager.requestFlexFlightChange(passengerId, bookingId, newFlight, newSeat));
+        try {
+            printContext(manager::listAllPassengers);
+            String passengerId = readLine("Passenger ID: ");
+            if (manager.findPassenger(passengerId) == null) {
+                throw new IllegalArgumentException("Passenger not found: " + passengerId);
+            }
+            printContext(() -> manager.listPassengerBookings(passengerId));
+            String bookingId = readLine("Booking ID: ");
+            if (manager.findPassenger(passengerId).findBooking(bookingId) == null) {
+                throw new IllegalArgumentException("Booking not found for passenger: " + bookingId);
+            }
+            printContext(manager::listAllFlights);
+            String newFlight = readLine("New flight number: ");
+            if (manager.findFlight(newFlight) == null) {
+                throw new IllegalArgumentException("Flight not found: " + newFlight);
+            }
+            printContext(() -> manager.listAvailableSeats(newFlight));
+            String newSeat = readLine("New seat: ");
+            runOperation("Flex Change", () ->
+                manager.requestFlexFlightChange(passengerId, bookingId, newFlight, newSeat));
+        } catch (IllegalArgumentException ex) {
+            showToOutput(ex.getMessage());
+        }
     }
 
     private static void saveSystemData() {
@@ -323,6 +393,19 @@ public class AirlineManagementSystem {
                 System.out.println("Value must be greater than zero.");
             } catch (NumberFormatException ex) {
                 System.out.println("Please enter a valid number.");
+            }
+        }
+    }
+
+    private static LocalDateTime readDateTime(String prompt) {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        while (true) {
+            System.out.print(prompt);
+            String line = scanner.nextLine().trim();
+            try {
+                return LocalDateTime.parse(line, fmt);
+            } catch (DateTimeParseException ex) {
+                System.out.println("Invalid format. Use yyyy-MM-dd HH:mm (example: 2026-07-10 14:30)");
             }
         }
     }

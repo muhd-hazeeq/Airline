@@ -12,6 +12,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,12 +52,26 @@ public class AirlineManager{
         syncFlightCounterFromId(flight.getFlightNumber());
     }
 
-    public String createFlight(String destination, double baseFare){
+    public String createFlight(String destination, double baseFare, LocalDateTime scheduledDeparture){
         String flightNumber = nextFlightNumber();
-        Flight flight = new Flight(flightNumber, destination, baseFare);
+        Flight flight = new Flight(flightNumber, destination, baseFare, scheduledDeparture);
         addFlight(flight);
         System.out.println("Flight registered with number: " + flightNumber);
         return flightNumber;
+    }
+
+    public void updateFlightDeparture(String flightNumber, LocalDateTime newDeparture){
+        Flight flight = findFlight(flightNumber);
+        if (flight == null) {
+            System.out.println("Flight not found: " + flightNumber);
+            return;
+        }
+        if (newDeparture != null) {
+            flight.setScheduledDeparture(newDeparture);
+            System.out.println("Departure time updated for flight " + flightNumber + ".");
+        } else {
+            System.out.println("Invalid departure time.");
+        }
     }
 
     public void registerPassenger(Passenger passenger){
@@ -147,8 +163,12 @@ public class AirlineManager{
 
         System.out.println("--- Flights ---");
         for (Flight flight : flights){
+            String dep = (flight.getScheduledDeparture() != null)
+                ? flight.getScheduledDeparture().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                : "N/A";
             System.out.println("  " + flight.getFlightNumber()
                 + " | " + flight.getDestination()
+                + " | " + dep
                 + " | RM " + flight.getBaseFare()
                 + " | " + flight.getStatus()
                 + " | booking: " + (flight.isAvailableForBooking() ? "open" : "closed"));
@@ -424,9 +444,11 @@ public class AirlineManager{
             writer.println("VERSION|1");
 
             for (Flight flight : flights){
+                String depStr = (flight.getScheduledDeparture() != null)
+                    ? flight.getScheduledDeparture().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : "";
                 writer.println("FLIGHT|" + flight.getFlightNumber() + "|"
                     + flight.getDestination() + "|" + flight.getBaseFare() + "|"
-                    + flight.getStatus());
+                    + flight.getStatus() + "|" + depStr);
 
                 Seat[][] seats = flight.getSeats();
                 if (seats != null){
@@ -516,7 +538,18 @@ public class AirlineManager{
                             System.out.println("Load skipped: invalid flight record.");
                             break;
                         }
-                        addFlight(new Flight(parts[1], parts[2], Double.parseDouble(parts[3])));
+                        LocalDateTime depTime = null;
+                        if (parts.length >= 6 && !parts[5].isEmpty()) {
+                            try {
+                                depTime = LocalDateTime.parse(parts[5]);
+                            } catch (Exception ignored) {
+                                // fall back to default
+                            }
+                        }
+                        if (depTime == null) {
+                            depTime = LocalDateTime.now().plusDays(1).withHour(10).withMinute(0);
+                        }
+                        addFlight(new Flight(parts[1], parts[2], Double.parseDouble(parts[3]), depTime));
                         pendingFlightStatus.put(parts[1], parts[4]);
                     }
                     case "SEAT" -> seatRecords.add(parts);

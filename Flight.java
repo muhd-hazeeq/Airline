@@ -6,6 +6,8 @@ SUBJECT NAME : OBJECT ORIENTED PROGRAMMING
 GROUP : FLYING SPUR
 SECTION : 06
 */
+                                                                                                                                            
+import java.time.LocalDateTime;
 
 public class Flight{
     private static final int MAX_CREW = 10;
@@ -17,11 +19,13 @@ public class Flight{
     private Crew[] flightCrew;
     private int crewCount;
     private Seat[][] seats;
+    private LocalDateTime scheduledDeparture;
 
-    public Flight(String flightNumber, String destination, double baseFare){
+    public Flight(String flightNumber, String destination, double baseFare, LocalDateTime scheduledDeparture){
         this.flightNumber = flightNumber;
         this.destination = destination;
         this.baseFare = baseFare;
+        this.scheduledDeparture = (scheduledDeparture != null) ? scheduledDeparture : LocalDateTime.now().plusDays(1);
         status = FlightStatus.SCHEDULED;
         flightCrew = new Crew[MAX_CREW];
         crewCount = 0;
@@ -37,6 +41,16 @@ public class Flight{
 
     public double getBaseFare(){
         return baseFare;
+    }
+
+    public LocalDateTime getScheduledDeparture(){
+        return scheduledDeparture;
+    }
+
+    public void setScheduledDeparture(LocalDateTime scheduledDeparture){
+        if (scheduledDeparture != null) {
+            this.scheduledDeparture = scheduledDeparture;
+        }
     }
 
     public FlightStatus getStatus(){
